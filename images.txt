@@ -1,1 +1,1 @@
-quay.io/kubernetes-ingress-controller/nginx-ingress-controller:latest,kubernetes-ingress-controller:nginx-ingress-controller-latest
+quay.io/kubernetes-ingress-controller/nginx-slim:0.28,kubernetes-ingress-controller:nginx-slim-0.28
