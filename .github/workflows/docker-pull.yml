@@ -32,7 +32,7 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v2
 
-      - name: 登录到阿里云ACR
+      - name: 登录到华为云ACR
         id: login
         env:
           ACR_USERNAME: cn-south-1@YNRH4VJ88CVFYLAADKLQ
