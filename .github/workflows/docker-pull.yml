@@ -6,11 +6,11 @@ on:
       TARGET_REGISTRY:
         description: '仓库地址'
         required: true
-        default: 'registry.cn-shenzhen.aliyuncs.com'
+        default: 'swr.cn-south-1.myhuaweicloud.com'
       TARGET_REPOSITORY:
         description: '空间名称'
         required: true
-        default: 'jxqwe'
+        default: 'kehang'
       ARCH:
         description: '系统架构'
         required: true
@@ -35,8 +35,8 @@ jobs:
       - name: 登录到阿里云ACR
         id: login
         env:
-          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
-          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+          ACR_USERNAME: cn-south-1@YNRH4VJ88CVFYLAADKLQ
+          ACR_PASSWORD: 66ea1b435399a90247838f0d3cd049b9ff1300b91a4c8dd0102cc58c91a3a965
         run: |
           docker login -u $ACR_USERNAME -p $ACR_PASSWORD ${{ inputs.TARGET_REGISTRY }}
 
