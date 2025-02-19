@@ -1,24 +1,16 @@
-name: 拉取镜像推送
+name: 批量镜像同步
 
 on:
   workflow_dispatch:
     inputs:
-      IMAGE_NAME:
-        description: '原镜像名称:版本'
-        required: true
-        default: 'mysql/mysql-server'
-      NEW_NAME:
-        description: '同步后镜像名称:版本'
-        required: true
-        default: 'mysql-server'
       TARGET_REGISTRY:
         description: '仓库地址'
         required: true
-        default: 'swr.cn-south-1.myhuaweicloud.com'
+        default: 'registry.cn-shenzhen.aliyuncs.com'
       TARGET_REPOSITORY:
         description: '空间名称'
         required: true
-        default: 'aopkcn'
+        default: 'jxqwe'
       ARCH:
         description: '系统架构'
         required: true
@@ -37,31 +29,63 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: 登录到 Docker 仓库
+      - name: 检出代码
+        uses: actions/checkout@v2
+
+      - name: 登录到阿里云ACR
         id: login
-        run: docker login -u ${{ cn-south-1@YNRH4VJ88CVFYLAADKLQ }} -p ${{66ea1b435399a90247838f0d3cd049b9ff1300b91a4c8dd0102cc58c91a3a965  }} ${{github.event.inputs.TARGET_REGISTRY }}
-        continue-on-error: true
-
-      - name: 检查 Docker 登录成功
-        if: ${{ steps.login.outcome == 'success' }}
-        run: echo "Docker 登录成功"
-
-      - name: 检查 Docker 登录失败
-        if: ${{ steps.login.outcome != 'success' }}
-        run: echo "Docker 登录失败"
-
-      - name: 拉取、标记并推送 Docker 镜像
-        id: pull_tag_push
+        env:
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
         run: |
-          docker pull --platform ${{ github.event.inputs.ARCH }} ${{ github.event.inputs.IMAGE_NAME }}
-          docker tag ${{ github.event.inputs.IMAGE_NAME }} ${{ github.event.inputs.TARGET_REGISTRY }}/${{ github.event.inputs.TARGET_REPOSITORY }}/${{ github.event.inputs.NEW_NAME }}
-          docker push ${{ github.event.inputs.TARGET_REGISTRY }}/${{ github.event.inputs.TARGET_REPOSITORY }}/${{ github.event.inputs.NEW_NAME }}
-        continue-on-error: true
+          docker login -u $ACR_USERNAME -p $ACR_PASSWORD ${{ inputs.TARGET_REGISTRY }}
 
-      - name: 检查镜像推送成功
-        if: ${{ steps.pull_tag_push.outcome == 'success' }}
-        run: echo "Docker 镜像推送成功"
+      - name: 读取镜像列表文件
+        id: read_images
+        run: |
+          # 验证文件存在
+          if [ ! -f images.txt ]; then
+            echo "❌ 镜像列表文件 images.txt 未找到"
+            exit 1
+          fi
+          
+          # 输出文件内容供调试
+          echo "📋 镜像列表内容："
+          cat images.txt
+          echo "------------------------------------"
 
-      - name: 检查镜像推送失败
-        if: ${{ steps.pull_tag_push.outcome != 'success' }}
-        run: echo "Docker 镜像推送失败"
+      - name: 批量同步镜像
+        id: sync_images
+        run: |
+          while IFS=',' read -r src_image dst_image; do
+            # 去除首尾空格
+            src_image=$(echo $src_image | xargs)
+            dst_image=$(echo $dst_image | xargs)
+
+            echo "🔄 正在处理镜像对: $src_image → $dst_image"
+            
+            # 完整目标镜像地址
+            target_image="${{ inputs.TARGET_REGISTRY }}/${{ inputs.TARGET_REPOSITORY }}/$dst_image"
+
+            # 拉取镜像
+            echo "⬇️  拉取镜像: $src_image"
+            docker pull --platform ${{ inputs.ARCH }} $src_image
+
+            # 重新打标签
+            echo "🏷️  标记镜像: $target_image"
+            docker tag $src_image $target_image
+
+            # 推送镜像
+            echo "⬆️  推送镜像: $target_image"
+            docker push $target_image
+
+            echo "✅ 完成: $src_image → $target_image"
+            echo "------------------------------------"
+          done < images.txt
+
+      - name: 清理工作环境
+        if: always()
+        run: |
+          echo "🧹 清理临时镜像..."
+          docker image prune -a -f
+
